@@ -21,7 +21,7 @@ defmodule Mysqlex.Connection do
   end
   defp get_command(nil), do: nil
 
-  defp keyword_list_parse(k) do
+  defp opts_convert_to_char_list(k) do
     Enum.map(k,
       fn(x) ->
         if is_binary(elem(x,1)) do
@@ -46,29 +46,24 @@ defmodule Mysqlex.Connection do
     * `:database` - Database (required);
     * `:username` - Username (default: MDBUSER env variable, then USER env var);
     * `:password` - User password (default MDBPASSWORD);
-    * `:encoder` - Custom encoder function;
-    * `:decoder` - Custom decoder function;
-    * `:formatter` - Function deciding the format for a type;
     * `:parameters` - Keyword list of connection parameters;
+    * `:queries` - A list of queries to run on startup, set timezone, etc.
     * `:timeout` - Connect timeout in milliseconds (default: 5000);
-    * `:charset` - Database encoding (default: "utf8");
     * `:socket_options` - Options to be given to the underlying socket;
+    * `:charset` - Database encoding (default: "utf8");
+    # TODO - Copied from mariaex, not sure if this should be 'utf8' or 'utf8mb4'
+    #        or if we should even set a default encoding at all
 
-  ## Function signatures
-
-      @spec encoder(info :: TypeInfo.t, default :: fun, param :: term) ::
-            binary
-      @spec decoder(info :: TypeInfo.t, default :: fun, bin :: binary) ::
-            term
-      @spec formatter(info :: TypeInfo.t) ::
-            :binary | :text | nil
   """
 
+  # TODO - fix up the docs for the arguments to start_link to match :mysql
   @spec start_link(Keyword.t) :: {:ok, pid} | {:error, Mysqlex.Error.t | term}
 
   def start_link(opts) do
     sock_type = (opts[:sock_type] || :tcp) |> Atom.to_string |> String.capitalize()
     sock_mod = ("Elixir.Mysqlex.Connection." <> sock_type) |> String.to_atom
+    queries = ( Keyword.get(opts, :queries) || [] ) ++ ["SET CHARACTER SET " <> (opts[:charset] || "utf8")]
+
     opts = opts
       |> Keyword.put_new(:username, System.get_env("MDBUSER") || System.get_env("USER"))
       |> Keyword.put_new(:password, System.get_env("MDBPASSWORD"))
@@ -78,10 +73,9 @@ defmodule Mysqlex.Connection do
       |> Keyword.put_new(:host, opts[:hostname])
       |> Keyword.put_new(:user, opts[:username])
       |> Keyword.put_new(:connect_timeout, opts[:timeout] || @timeout)
+      |> Keyword.put(:queries, queries)
+      |> opts_convert_to_char_list
 
-    opts = keyword_list_parse(opts)
-    # TODO - fix up the arguments to start_link to match :mysql
-    # TODO - setup the charset? query(pid, "SET CHARACTER SET " <> (opts[:charset] || "utf8"))
     :mysql.start_link(opts)
   end
 
