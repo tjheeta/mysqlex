@@ -21,10 +21,11 @@ defmodule Mysqlex.Result do
 end
 
 defmodule Mysqlex.Error do
-  defexception [:message, :mariadb]
+  defexception [:message, :mysqlex]
 
   def message(e) do
-    if kw = e.mariadb do
+    IO.inspect(e)
+    if kw = e.mysqlex do
       msg = "(#{kw[:code]}): #{kw[:message]}"
     end
 

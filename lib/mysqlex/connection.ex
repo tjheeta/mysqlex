@@ -140,9 +140,11 @@ defmodule Mysqlex.Connection do
         last_insert_id = :mysql.insert_id(pid)
         affected_rows = :mysql.affected_rows(pid)
         {:ok, %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id} }
-      # TODO - deal with error
-      # ** (CaseClauseError) no case clause matching: {:error, {1146, "42S02", "Table 'test.domains1' doesn't exist"}}
-      #    (mysqlex) lib/mysqlex/connection.ex:131: Mysqlex.Connection.query/4
+      {:error, {mysql_err_code, _, msg}} -> 
+        {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{msg}"}}
+      _ ->
+        # Don't crash - but let the user know that this is unhandled.
+        {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement."}}
     end
   end
 
