@@ -133,11 +133,13 @@ defmodule Mysqlex.Connection do
     cmd = get_command(statement)
     case :mysql.query(pid, statement, params) do
       {:ok, columns, rows} ->
-        %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows) }
-      :ok -> 
+        # Convert to correct format for Ecto
+        rows = Enum.map(rows, &List.to_tuple(&1))
+        {:ok, %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows)} }
+      :ok ->
         last_insert_id = :mysql.insert_id(pid)
         affected_rows = :mysql.affected_rows(pid)
-        %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id  }
+        {:ok, %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id} }
       # TODO - deal with error
       # ** (CaseClauseError) no case clause matching: {:error, {1146, "42S02", "Table 'test.domains1' doesn't exist"}}
       #    (mysqlex) lib/mysqlex/connection.ex:131: Mysqlex.Connection.query/4
