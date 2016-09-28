@@ -134,7 +134,15 @@ defmodule Mysqlex.Connection do
         last_insert_id = :mysql.insert_id(pid)
         affected_rows = :mysql.affected_rows(pid)
         {:ok, %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id} }
-      {:error, {mysql_err_code, _, msg}} -> 
+      {:ok, response} when is_list(response) ->
+        results =
+          response
+          |> Enum.map(fn({columns, rows}) ->
+            rows = Enum.map(rows, &List.to_tuple(&1))
+            %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows)}
+          end)
+        {:ok, results}
+      {:error, {mysql_err_code, _, msg}} ->
         {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{msg}"}}
       _ ->
         # Don't crash - but let the user know that this is unhandled.
@@ -152,4 +160,3 @@ defmodule Mysqlex.Connection do
   end
 
 end
-
