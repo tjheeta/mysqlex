@@ -4,6 +4,7 @@ defmodule Mysqlex.Connection do
   """
 
   @timeout 5000
+  @pooled Application.get_env(:mysqlex, :pooled, false)
 
   defmacrop raiser(result) do
     quote do
@@ -80,6 +81,17 @@ defmodule Mysqlex.Connection do
   end
 
   @doc """
+  Get a child spec for a connection pool
+  """
+  def get_pool_spec(pool_name, pool_args, mysql_args) do
+    :mysql_poolboy.child_spec(
+      pool_name,
+      pool_args |> opts_convert_to_char_list,
+      mysql_args |> opts_convert_to_char_list
+    )
+  end
+
+  @doc """
   Stop the process and disconnect.
 
   """
@@ -125,7 +137,9 @@ defmodule Mysqlex.Connection do
   def query(pid, statement, params \\ [], opts \\ []) do
     # TODO - add parsing of options, eg. timeout
     cmd = get_command(statement)
-    case :mysql.query(pid, statement, params) do
+    module = if @pooled, do: :mysql_poolboy, else: :mysql
+    result = Kernel.apply(module, :query, [pid, statement, params])
+    case result do
       {:ok, columns, rows} ->
         # Convert to correct format for Ecto
         rows = Enum.map(rows, &List.to_tuple(&1))
@@ -144,9 +158,9 @@ defmodule Mysqlex.Connection do
         {:ok, results}
       {:error, {mysql_err_code, _, msg}} ->
         {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{msg}"}}
-      _ ->
+      e ->
         # Don't crash - but let the user know that this is unhandled.
-        {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement."}}
+        {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement - #{inspect e}"}}
     end
   end
 
