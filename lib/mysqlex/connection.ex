@@ -145,8 +145,18 @@ defmodule Mysqlex.Connection do
         rows = Enum.map(rows, &List.to_tuple(&1))
         {:ok, %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows)} }
       :ok ->
-        last_insert_id = :mysql.insert_id(pid)
-        affected_rows = :mysql.affected_rows(pid)
+        last_insert_id = if @pooled do
+          :mysql_poolboy.with(pid, fn(conn) -> :mysql.insert_id(conn) end)
+        else
+          :mysql.insert_id(pid)
+        end
+
+        affected_rows = if @pooled do
+          :mysql_poolboy.with(pid, fn(conn) -> :mysql.affected_rows(conn) end)
+        else
+          :mysql.affected_rows(pid)
+        end
+
         {:ok, %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id} }
       {:ok, response} when is_list(response) ->
         results =
@@ -157,7 +167,7 @@ defmodule Mysqlex.Connection do
           end)
         {:ok, results}
       {:error, {mysql_err_code, _, msg}} ->
-        {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{msg}"}}
+        {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{strip_last(msg)}"}}
       e ->
         # Don't crash - but let the user know that this is unhandled.
         {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement - #{inspect e}"}}
@@ -171,6 +181,11 @@ defmodule Mysqlex.Connection do
 
   def query!(pid, statement, params \\ [], opts \\ []) do
     query(pid, statement, params, opts) |> raiser
+  end
+
+  defp strip_last(s) do
+    [h|t] = s |> to_char_list |> Enum.reverse
+    t |> Enum.reverse
   end
 
 end
