@@ -72,6 +72,7 @@ defmodule Mysqlex.Connection do
       # hostname -> host, username -> user, timeout -> connect_timeout
       |> Keyword.put_new(:host, opts[:hostname])
       |> Keyword.put_new(:user, opts[:username])
+      |> Keyword.put_new(:port, opts[:port] || 3306)
       |> Keyword.put_new(:connect_timeout, opts[:timeout] || @timeout)
       |> Keyword.put(:queries, queries)
       |> opts_convert_to_char_list
