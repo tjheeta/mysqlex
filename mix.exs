@@ -28,7 +28,8 @@ defmodule Mysqlex.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-      {:mysql, github: "mysql-otp/mysql-otp"}
+      {:mysql, github: "mysql-otp/mysql-otp", tag: "1.2.0"},
+      {:mysql_poolboy, github: "mysql-otp/mysql-otp-poolboy", tag: "0.1.7"}
     ]
   end
 end

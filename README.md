@@ -22,6 +22,13 @@ def deps do
 end
 ~~~
 
+If you want to use pooling (courtesy of poolboy) add the following to your config:
+
+~~~
+config :mysqlex,
+  pooled: true
+~~~
+
 Profit:
 
 ~~~

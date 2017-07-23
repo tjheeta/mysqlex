@@ -1,3 +1,5 @@
 %{"decimal": {:hex, :decimal, "1.1.0"},
   "mariaex": {:hex, :mariaex, "0.1.6"},
-  "mysql": {:git, "git://github.com/mysql-otp/mysql-otp.git", "b6646c02a7595de46cf0db7b82c92ccaf8d327c3", []}}
+  "mysql": {:git, "https://github.com/mysql-otp/mysql-otp.git", "b6646c02a7595de46cf0db7b82c92ccaf8d327c3", [tag: "1.2.0"]},
+  "mysql_poolboy": {:git, "https://github.com/mysql-otp/mysql-otp-poolboy.git", "ae1970df8818cab270b5e3e224395bfcb04cd2a3", [tag: "0.1.7"]},
+  "poolboy": {:git, "https://github.com/devinus/poolboy.git", "3bb48a893ff5598f7c73731ac17545206d259fac", [tag: "1.5.1"]}}

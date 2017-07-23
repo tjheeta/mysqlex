@@ -4,6 +4,7 @@ defmodule Mysqlex.Connection do
   """
 
   @timeout 5000
+  @pooled Application.get_env(:mysqlex, :pooled, false)
 
   defmacrop raiser(result) do
     quote do
@@ -81,6 +82,17 @@ defmodule Mysqlex.Connection do
   end
 
   @doc """
+  Get a child spec for a connection pool
+  """
+  def get_pool_spec(pool_name, pool_args, mysql_args) do
+    :mysql_poolboy.child_spec(
+      pool_name,
+      pool_args |> opts_convert_to_char_list,
+      mysql_args |> opts_convert_to_char_list
+    )
+  end
+
+  @doc """
   Stop the process and disconnect.
 
   """
@@ -126,20 +138,40 @@ defmodule Mysqlex.Connection do
   def query(pid, statement, params \\ [], opts \\ []) do
     # TODO - add parsing of options, eg. timeout
     cmd = get_command(statement)
-    case :mysql.query(pid, statement, params) do
+    module = if @pooled, do: :mysql_poolboy, else: :mysql
+    result = Kernel.apply(module, :query, [pid, statement, params])
+    case result do
       {:ok, columns, rows} ->
         # Convert to correct format for Ecto
         rows = Enum.map(rows, &List.to_tuple(&1))
         {:ok, %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows)} }
       :ok ->
-        last_insert_id = :mysql.insert_id(pid)
-        affected_rows = :mysql.affected_rows(pid)
+        last_insert_id = if @pooled do
+          :mysql_poolboy.with(pid, fn(conn) -> :mysql.insert_id(conn) end)
+        else
+          :mysql.insert_id(pid)
+        end
+
+        affected_rows = if @pooled do
+          :mysql_poolboy.with(pid, fn(conn) -> :mysql.affected_rows(conn) end)
+        else
+          :mysql.affected_rows(pid)
+        end
+
         {:ok, %Mysqlex.Result{columns: [], command: cmd, rows: [], num_rows: affected_rows, last_insert_id: last_insert_id} }
-      {:error, {mysql_err_code, _, msg}} -> 
-        {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{msg}"}}
-      _ ->
+      {:ok, response} when is_list(response) ->
+        results =
+          response
+          |> Enum.map(fn({columns, rows}) ->
+            rows = Enum.map(rows, &List.to_tuple(&1))
+            %Mysqlex.Result{columns: columns, command: cmd, rows: rows, num_rows: length(rows)}
+          end)
+        {:ok, results}
+      {:error, {mysql_err_code, _, msg}} ->
+        {:error, %Mysqlex.Error{message: "#{mysql_err_code} - #{strip_last(msg)}"}}
+      e ->
         # Don't crash - but let the user know that this is unhandled.
-        {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement."}}
+        {:error, %Mysqlex.Error{message: "mysqlex/connection.ex unhandled match in case statement - #{inspect e}"}}
     end
   end
 
@@ -152,5 +184,9 @@ defmodule Mysqlex.Connection do
     query(pid, statement, params, opts) |> raiser
   end
 
-end
+  defp strip_last(s) do
+    [h|t] = s |> to_char_list |> Enum.reverse
+    t |> Enum.reverse
+  end
 
+end
