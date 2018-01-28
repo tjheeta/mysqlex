@@ -25,7 +25,7 @@ defmodule Mysqlex.Connection do
     Enum.map(k,
       fn(x) ->
         if is_binary(elem(x,1)) do
-          { elem(x,0), String.to_char_list(elem(x,1))}
+          { elem(x,0), String.to_charlist(elem(x,1))}
         else
           x
         end

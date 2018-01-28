@@ -25,10 +25,8 @@ defmodule Mysqlex.Error do
 
   def message(e) do
     IO.inspect(e)
-    if kw = e.mysqlex do
-      msg = "(#{kw[:code]}): #{kw[:message]}"
-    end
-
+    kw = e.mysqlex
+    msg = "(#{kw[:code]}): #{kw[:message]}"
     msg || e.message
   end
 end
